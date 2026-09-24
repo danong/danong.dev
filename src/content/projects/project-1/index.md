@@ -1,76 +1,17 @@
 ---
-title: "Astro Sphere"
-description: "Portfolio and blog build with astro."
-date: "Mar 18 2024"
-demoURL: "https://astro-sphere-demo.vercel.app"
-repoURL: "https://github.com/markhorn-dev/astro-sphere"
+title: "Tennis Serve Analyzer"
+description: "Computer vision project to automatically analyze tennis serves"
+date: "Sep 23 2026"
+repoURL: "https://github.com/danong/tennis-coach"
 ---
 
-![Astro Sphere Lighthouse Score](/astro-sphere.jpg)
+Tennis Serve Analyzer uses computer vision models to analyze videos of tennis serves. 
 
-Astro Sphere is a static, minimalist, lightweight, lightning fast portfolio and blog theme based on my personal website.
-
-It is primarily Astro, Tailwind and Typescript, with a very small amount of SolidJS for stateful components.
-
-## 🚀 Deploy your own
-
-<div class="flex gap-2">
-  <a target="_blank" aria-label="Deploy with Vercel" href="https://vercel.com/new/clone?repository-url=https://github.com/markhorn-dev/astro-sphere">
-    <img src="/deploy_vercel.svg" />
-  </a>
-  <a target="_blank" aria-label="Deploy with Netlify" href="https://app.netlify.com/start/deploy?repository=https://github.com/markhorn-dev/astro-sphere">
-    <img src="/deploy_netlify.svg" />
-  </a>
-</div>
+It is primarily written in Python and uses MediaPipe and RacketVision to track pose, racket, and ball coordinates, which is then fed into an analysis engine.
 
 ## 📋 Features
 
-- ✅ 100/100 Lighthouse performance
-- ✅ Responsive
-- ✅ Accessible
-- ✅ SEO-friendly
-- ✅ Typesafe
-- ✅ Minimal style
-- ✅ Light/Dark Theme
-- ✅ Animated UI
-- ✅ Tailwind styling
-- ✅ Auto generated sitemap
-- ✅ Auto generated RSS Feed
-- ✅ Markdown support
-- ✅ MDX Support (components in your markdown)
-- ✅ Searchable content (posts and projects)
+- From a source containing multiple serve attempts, detect accepted attempts, remove the intermediate footage
+- Automatically estimate checkpoints for eight stages: start, release, loading, cocking, acceleration, contact, deceleration, and finish.
+- Create a deterministic, body-only measurement record for each attempt, combining 30 fixed interpretable metrics with a [5, 16, 12] phase-aligned motion sequence.
 
-## 💯 Lighthouse score
-![Astro Sphere Lighthouse Score](/lighthouse.png)
-
-## 🕊️ Lightweight
-All pages under 100kb (including fonts)
-
-## ⚡︎ Fast
-Rendered in ~40ms on localhost
-
-## 📄 Configuration
-
-The blog posts on the demo serve as the documentation and configuration.
-
-## 💻 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-Replace npm with your package manager of choice. `npm`, `pnpm`, `yarn`, `bun`, etc
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run sync`            | Generates TypeScript types for all Astro modules.|
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-| `npm run lint`            | Run ESLint                                       |
-| `npm run lint:fix`        | Auto-fix ESLint issues                           |
-
-## 🏛️ License
-
-MIT
