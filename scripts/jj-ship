@@ -22,12 +22,15 @@ if (( $# > 1 )); then
   exit 2
 fi
 
-for dependency in jj gh; do
+for dependency in jj gh git; do
   if ! command -v "$dependency" >/dev/null 2>&1; then
     printf 'Required command not found: %s\n' "$dependency" >&2
     exit 1
   fi
 done
+
+gh auth status >/dev/null
+jj git fetch --remote origin
 
 revision="${1:-}"
 if [[ -z "$revision" ]]; then
@@ -49,15 +52,17 @@ if [[ "$title" == *'\n'* ]]; then
   title="${title%%'\n'*}"
 fi
 change_id="$(jj log --no-graph -r "$revision" -T 'change_id.short()')"
-short_id="${change_id:0:8}"
-slug="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-|-$//g' | cut -c1-40 | sed 's/-$//')"
-if [[ -z "$slug" ]]; then
-  slug='change'
-fi
-bookmark="ship/${slug}-${short_id}"
+bookmark="ship/${change_id}"
 
-gh auth status >/dev/null
-jj git fetch --remote origin
+working_copy_id="$(jj log --no-graph -r @ -T 'change_id')"
+working_copy_empty="$(jj log --no-graph -r @ -T 'empty')"
+parent_change_id="$(jj log --no-graph -r @- -T 'change_id')"
+target_commit="$(jj log --no-graph -r "$revision" -T 'commit_id')"
+reset_to_main=false
+if [[ "$change_id" == "$working_copy_id" ]] || \
+  [[ "$working_copy_empty" == true && "$change_id" == "$parent_change_id" ]]; then
+  reset_to_main=true
+fi
 
 if jj bookmark list "$bookmark" 2>/dev/null | grep -q .; then
   jj bookmark set "$bookmark" --revision "$revision"
@@ -82,6 +87,41 @@ if [[ -z "$pr_url" ]]; then
   pr_url="$(gh api "repos/${repo}/pulls" --method POST -f title="$title" -f head="$bookmark" -f base=main -f body="$body" --jq '.html_url')"
 fi
 
-gh pr checks "$pr_url" --repo "$repo" --watch
+checks_ready=false
+for attempt in {1..12}; do
+  if checks_output="$(gh pr checks "$pr_url" --repo "$repo" --watch 2>&1)"; then
+    printf '%s\n' "$checks_output"
+    checks_ready=true
+    break
+  else
+    checks_status=$?
+  fi
+
+  if [[ "$checks_output" != *"no checks reported"* ]]; then
+    printf '%s\n' "$checks_output" >&2
+    exit "$checks_status"
+  fi
+  sleep 5
+done
+
+if [[ "$checks_ready" != true ]]; then
+  printf 'No checks were reported for %s after waiting.\n' "$pr_url" >&2
+  exit 1
+fi
+
 gh pr merge "$pr_url" --repo "$repo" --squash
+
+jj bookmark delete "$bookmark"
+jj git push --remote origin --deleted --bookmark "$bookmark"
+jj git fetch --remote origin
+
+if [[ "$reset_to_main" == true ]]; then
+  jj new main
+  merged_revisions="main..${target_commit}"
+  if [[ -n "$(jj log --no-graph -r "$merged_revisions" -T 'commit_id')" ]] &&
+    [[ -z "$(jj bookmark list --all-remotes -r "$merged_revisions")" ]]; then
+    jj abandon "$merged_revisions"
+  fi
+fi
+
 printf 'PR: %s\n' "$pr_url"
