@@ -111,13 +111,13 @@ fi
 
 gh pr merge "$pr_url" --repo "$repo" --squash
 
-git push origin --delete "$bookmark"
 jj bookmark delete "$bookmark"
+git push origin --delete "$bookmark"
 jj git fetch --remote origin
 
 if [[ "$reset_to_main" == true ]]; then
-  jj new main
-  merged_revisions="main..${target_commit}"
+  jj new main@origin
+  merged_revisions="main@origin..${target_commit}"
   if [[ -n "$(jj log --no-graph -r "$merged_revisions" -T 'commit_id')" ]] &&
     [[ -z "$(jj bookmark list --all-remotes -r "$merged_revisions")" ]]; then
     jj abandon "$merged_revisions"
