@@ -4,7 +4,9 @@ My personal website. Theme forked from https://github.com/markhorn-dev/ and host
 
 ## Shipping a change with Jujutsu
 
-Run `./scripts/jj-ship` to push the current Jujutsu change on a `ship/*` bookmark,
-open a pull request against `main`, wait for its checks, and squash-merge it if
-they pass. The script accepts an optional revision, such as
-`./scripts/jj-ship @-`. It requires `jj`, `gh`, and GitHub CLI authentication.
+Run `./scripts/jj-ship` to push the current Jujutsu change on a stable
+`ship/<change-id>` bookmark, open a pull request against `main`, wait for its
+checks, and squash-merge it if they pass. After a successful merge, the script
+deletes its bookmark, fetches `origin`, and returns the working copy to `main`
+when it shipped the current working copy. It accepts an optional revision, such
+as `./scripts/jj-ship @-`. It requires `jj`, `gh`, and GitHub CLI authentication.
