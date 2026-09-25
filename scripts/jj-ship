@@ -64,7 +64,7 @@ if [[ "$change_id" == "$working_copy_id" ]] || \
   reset_to_main=true
 fi
 
-if jj bookmark list "$bookmark" 2>/dev/null | grep -q .; then
+if [[ -n "$(jj bookmark list --all-remotes "$bookmark" 2>/dev/null)" ]]; then
   jj bookmark set "$bookmark" --revision "$revision"
 else
   jj bookmark create "$bookmark" --revision "$revision"
@@ -111,8 +111,8 @@ fi
 
 gh pr merge "$pr_url" --repo "$repo" --squash
 
+git push origin --delete "$bookmark"
 jj bookmark delete "$bookmark"
-jj git push --remote origin --deleted --bookmark "$bookmark"
 jj git fetch --remote origin
 
 if [[ "$reset_to_main" == true ]]; then
