@@ -116,25 +116,28 @@ jj bookmark delete "$bookmark"
 git push origin --delete "$bookmark"
 
 main_commit=""
+main_relation=""
 for attempt in {1..12}; do
   jj git fetch --remote origin
   main_commit="$(gh api "repos/${repo}/branches/main" --jq '.commit.sha')"
-  if [[ -n "$main_commit" ]] &&
-    [[ "$(jj log --no-graph -r "$merge_commit & ancestors($main_commit)" -T 'commit_id')" == "$merge_commit" ]]; then
+  main_relation="$(gh api "repos/${repo}/compare/${merge_commit}...${main_commit}" --jq '.status')"
+  if [[ "$main_relation" == ahead || "$main_relation" == identical ]]; then
     break
   fi
   sleep 2
 done
 
-if [[ -z "$main_commit" ]] ||
-  [[ "$(jj log --no-graph -r "$merge_commit & ancestors($main_commit)" -T 'commit_id')" != "$merge_commit" ]]; then
+if [[ "$main_relation" != ahead && "$main_relation" != identical ]]; then
   printf 'PR merged, but origin/main did not advance to %s.\n' "$merge_commit" >&2
   exit 1
 fi
 
 if [[ "$reset_to_main" == true ]]; then
+  jj git fetch --remote origin
+  local_main="$(jj log --no-graph -r main -T 'commit_id')"
+  local_main_relation="$(gh api "repos/${repo}/compare/${local_main}...${main_commit}" --jq '.status')"
   jj new "$main_commit"
-  if [[ -n "$(jj log --no-graph -r "main & ancestors($main_commit)" -T 'commit_id')" ]]; then
+  if [[ "$local_main_relation" == ahead ]]; then
     jj bookmark move main --to "$main_commit"
   fi
   merged_revisions="${main_commit}..${target_commit}"
