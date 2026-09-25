@@ -6,7 +6,7 @@ usage() {
 Usage: ./scripts/jj-ship [REVISION]
 
 Push a Jujutsu change to a new ship/* bookmark, open a PR against main, and
-enable GitHub auto-merge so it merges when required checks pass.
+wait for its checks to pass before squash-merging it.
 
 When REVISION is omitted, ships @ if it is non-empty, otherwise @-.
 EOF
@@ -31,21 +31,24 @@ done
 
 revision="${1:-}"
 if [[ -z "$revision" ]]; then
-  if [[ "$(jj log -r @ -T 'empty')" == "true" ]]; then
+  if [[ "$(jj log --no-graph -r @ -T 'empty')" == "true" ]]; then
     revision='@-'
   else
     revision='@'
   fi
 fi
 
-description="$(jj log -r "$revision" -T 'description')"
+description="$(jj log --no-graph -r "$revision" -T 'description')"
 if [[ -z "${description//[[:space:]]/}" ]]; then
   printf 'Revision %s has no description. Set one with `jj describe` or pass another revision.\n' "$revision" >&2
   exit 1
 fi
 
 title="${description%%$'\n'*}"
-change_id="$(jj log -r "$revision" -T 'change_id')"
+if [[ "$title" == *'\n'* ]]; then
+  title="${title%%'\n'*}"
+fi
+change_id="$(jj log --no-graph -r "$revision" -T 'change_id.short()')"
 short_id="${change_id:0:8}"
 slug="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-|-$//g' | cut -c1-40 | sed 's/-$//')"
 if [[ -z "$slug" ]]; then
@@ -57,19 +60,28 @@ gh auth status >/dev/null
 jj git fetch --remote origin
 
 if jj bookmark list "$bookmark" 2>/dev/null | grep -q .; then
-  printf 'Bookmark already exists: %s\n' "$bookmark" >&2
-  printf 'Pass a different revision or remove that bookmark before shipping.\n' >&2
+  jj bookmark set "$bookmark" --revision "$revision"
+else
+  jj bookmark create "$bookmark" --revision "$revision"
+fi
+jj git push --remote origin --bookmark "$bookmark"
+
+origin_url="$(git remote get-url origin)"
+repo="${origin_url#git@github.com:}"
+repo="${repo#https://github.com/}"
+repo="${repo#ssh://git@github.com/}"
+repo="${repo%.git}"
+if [[ "$repo" != */* || "$repo" == */*/* ]]; then
+  printf 'Cannot determine GitHub owner/repository from origin URL: %s\n' "$origin_url" >&2
   exit 1
 fi
 
-jj bookmark create "$bookmark" --revision "$revision"
-jj git push --remote origin --bookmark "$bookmark"
-
-pr_url="$(gh pr list --state open --head "$bookmark" --json url --jq '.[0].url // empty')"
+pr_url="$(gh pr list --repo "$repo" --state open --head "$bookmark" --json url --jq '.[0].url // empty')"
 if [[ -z "$pr_url" ]]; then
   body="$(printf 'Automated PR for Jujutsu change `%s`.\n\nRequired checks must pass before GitHub merges this PR.' "$change_id")"
-  pr_url="$(gh pr create --base main --head "$bookmark" --title "$title" --body "$body")"
+  pr_url="$(gh api "repos/${repo}/pulls" --method POST -f title="$title" -f head="$bookmark" -f base=main -f body="$body" --jq '.html_url')"
 fi
 
-gh pr merge "$pr_url" --auto
+gh pr checks "$pr_url" --repo "$repo" --watch
+gh pr merge "$pr_url" --repo "$repo" --squash
 printf 'PR: %s\n' "$pr_url"
