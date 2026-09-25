@@ -110,13 +110,31 @@ if [[ "$checks_ready" != true ]]; then
 fi
 
 gh pr merge "$pr_url" --repo "$repo" --squash
+merge_commit="$(gh pr view "$pr_url" --repo "$repo" --json mergeCommit --jq '.mergeCommit.oid')"
 
 jj bookmark delete "$bookmark"
 git push origin --delete "$bookmark"
-jj git fetch --remote origin
+
+main_updated=false
+for attempt in {1..12}; do
+  jj git fetch --remote origin
+  if [[ -n "$(jj log --no-graph -r "$merge_commit & ancestors(main@origin)" -T 'commit_id')" ]]; then
+    main_updated=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$main_updated" != true ]]; then
+  printf 'PR merged, but origin/main did not advance to %s.\n' "$merge_commit" >&2
+  exit 1
+fi
 
 if [[ "$reset_to_main" == true ]]; then
   jj new main@origin
+  if [[ -n "$(jj log --no-graph -r "main & ancestors(main@origin)" -T 'commit_id')" ]]; then
+    jj bookmark move main --to main@origin
+  fi
   merged_revisions="main@origin..${target_commit}"
   if [[ -n "$(jj log --no-graph -r "$merged_revisions" -T 'commit_id')" ]] &&
     [[ -z "$(jj bookmark list --all-remotes -r "$merged_revisions")" ]]; then
