@@ -6,7 +6,7 @@ repoURL: "https://github.com/danong/nightshift"
 demoURL: "https://sleep-demo.danong.dev" 
 ---
 
-![Nightshift](/nightshift.png)
+![Nightshift](./nightshift.png)
 
 Nightshift lets you automate your Eight Sleep Pod’s temperature throughout the night without paying for an Autopilot subscription. Define your own nightly schedule, adjust temperatures across multiple stages, and host it for free on Cloudflare.
 
